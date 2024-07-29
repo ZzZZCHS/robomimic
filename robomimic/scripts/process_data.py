@@ -23,6 +23,8 @@ def extract_noun_phrases(text):
 
 
 if __name__ == "__main__":
+    
+    breakpoint()
 
     grounding_model = GroundUtils(device="cuda:2")
     data_root = 'groundingLMM/robocasa_datasets'

@@ -22,6 +22,7 @@ import random
 from tools.markdown_utils import colors
 from tqdm import tqdm
 import shutil
+import spacy
 
 
 class GroundUtils:
@@ -51,9 +52,16 @@ class GroundUtils:
         self.global_enc_processor = global_enc_processor
         self.transform = transform
         
+        self.nlp = spacy.load("en_core_web_sm")
         
+    def extract_noun_phrases(self, text):
+        doc = self.nlp(text)
+        noun_phrases = []
+        for chunk in doc.noun_chunks:
+            if not any(token.pos_ == "PRON" for token in chunk):
+                noun_phrases.append(chunk.text)
+        return noun_phrases
         
-
     # def parse_args(self):
     #     # parser = argparse.ArgumentParser(description="GLaMM Model Demo")
     #     # parser.add_argument("--version", default="/root/huanghaifeng/groundingLMM/GLaMM-FullScope")

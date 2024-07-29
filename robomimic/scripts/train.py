@@ -86,8 +86,10 @@ def train(config, device):
     ObsUtils.initialize_obs_utils_with_config(config)
     
     # initialize grounding model
-    # grounding_model = GroundUtils(device="cuda:1")
-    grounding_model = None
+    if "masked_rgb" in config.observation.modalities.obs:
+        grounding_model = GroundUtils(device="cuda:1")
+    else:
+        grounding_model = None
 
     # extract the metadata and shape metadata across all datasets
     env_meta_list = []

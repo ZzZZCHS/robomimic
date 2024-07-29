@@ -142,6 +142,7 @@ class SequenceDataset(torch.utils.data.Dataset):
         self.pad_frame_stack = pad_frame_stack
         self.get_pad_mask = get_pad_mask
 
+        self.lang_encoder = lang_encoder
         self.load_demo_info(filter_by_attribute=self.filter_by_attribute)
 
         # maybe prepare for observation normalization
@@ -258,23 +259,23 @@ class SequenceDataset(torch.utils.data.Dataset):
                 self._index_to_demo_id[self.total_num_sequences] = ep
                 self.total_num_sequences += 1
 
-        device = TorchUtils.get_torch_device(try_to_use_cuda=True)
-        lang_encoder = LangUtils.LangEncoder(
-            device=device,
-        )
+        # device = TorchUtils.get_torch_device(try_to_use_cuda=True)
+        # lang_encoder = LangUtils.LangEncoder(
+        #     device=device,
+        # )
         
         if len(self._demo_id_to_demo_lang_str) > 0:
             print("getting language embeddings...")
             for ep_batch in tqdm(np.array_split(self.demos, int(math.ceil(len(self.demos) / 64)))):
                 # get language embedding
                 lang_batch = [self._demo_id_to_demo_lang_str[ep] for ep in ep_batch]
-                emb_batch = lang_encoder.get_lang_emb(lang_batch)
+                emb_batch = self.lang_encoder.get_lang_emb(lang_batch)
                 # emb_batch = torch.randn(50, 768)
                 emb_batch = TensorUtils.to_numpy(emb_batch)
                 for batch_idx, ep in enumerate(ep_batch):
                     self._demo_id_to_demo_lang_emb[ep] = emb_batch[batch_idx]
 
-        del lang_encoder
+        # del lang_encoder
 
     @property
     def hdf5_file(self):

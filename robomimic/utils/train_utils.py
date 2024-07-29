@@ -299,6 +299,7 @@ def run_rollout(
 
     ob_dict = env.reset()
     policy.start_episode(lang=env._ep_lang_str)
+    # print(env._ep_lang_str)
 
     goal_dict = None
     if use_goals:
@@ -322,15 +323,10 @@ def run_rollout(
         video_frames = []
         
     if grounding_model is not None:
-        assert env.env.env.object_cfgs[0]['name'] == 'obj'
-        target_obj_name = env.env.env.object_cfgs[0]['info']['cat']
-        noun_phrases = ["the " + target_obj_name]
-        if env.name == 'PnPCounterToCab':
-            noun_phrases.extend(['the counter', 'the cabinet'])
-        elif env.name == 'PnPCounterToSink':
-            noun_phrases.extend(['the counter', 'the sink'])
-        else:
-            raise NotImplementedError
+        # assert env.env.env.object_cfgs[0]['name'] == 'obj'
+        # target_obj_name = env.env.env.object_cfgs[0]['info']['cat']
+        
+        noun_phrases = grounding_model.extract_noun_phrases(env._ep_lang_str)
         
         prompt_template = "Can you segment {}?"
 

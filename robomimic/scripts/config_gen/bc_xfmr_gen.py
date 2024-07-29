@@ -14,7 +14,8 @@ def make_generator_helper(args):
         args.ckpt_mode = "off"
 
     ### Multi-task training on atomic tasks ###
-    # EVAL_TASKS = ["PnPCounterToSink", "PnPCounterToCab"] # or evaluate all tasks by setting EVAL_TASKS = None
+    # EVAL_TASKS = ["OpenDrawer", "CloseDrawer"] # or evaluate all tasks by setting EVAL_TASKS = None
+    EVAL_TASKS = None
     # generator.add_param(
     #     key="train.data",
     #     name="ds",
@@ -65,7 +66,7 @@ def make_generator_helper(args):
         name="ckpt",
         group=1389,
         values_and_names=[
-            ("/root/huanghaifeng/robocasa_exps/expdata/robocasa/im/bc_xfmr/07-02-train-0702/seed_123_ds_human-50/20240702164833/models/model_epoch_800.pth", "trained-ckpt"),
+            ("/root/huanghaifeng/robocasa_exps/expdata/robocasa/im/bc_xfmr/07-02-train-0702/seed_123_ds_human-50/20240702164833/models/model_epoch_300.pth", "trained-ckpt"),
         ],
     )
     generator.add_param(
