@@ -13,27 +13,38 @@ def make_generator_helper(args):
         args.ckpt_mode = "off"
 
 
-    generator.add_param(
-        key="train.num_epochs",
-        name="",
-        group=-1,
-        values=[1000],
-    )
+    # generator.add_param(
+    #     key="train.num_epochs",
+    #     name="",
+    #     group=-1,
+    #     values=[1000],
+    # )
 
-    generator.add_param(
-        key="train.batch_size",
-        name="",
-        group=-1,
-        values=[64],
-    )
+    # generator.add_param(
+    #     key="train.batch_size",
+    #     name="",
+    #     group=-1,
+    #     values=[64],
+    # )
 
-    generator.add_param(
-        key="train.max_grad_norm",
-        name="",
-        group=-1,
-        values=[100.0],
-    )
+    # generator.add_param(
+    #     key="train.max_grad_norm",
+    #     name="",
+    #     group=-1,
+    #     values=[100.0],
+    # )
 
+    ### Multi-task training on atomic tasks ###
+    EVAL_TASKS = None # ["PnPCounterToSink", "PnPCounterToCab"] # or evaluate all tasks by setting EVAL_TASKS = None
+    generator.add_param(
+        key="train.data",
+        name="ds",
+        group=123456,
+        values_and_names=[
+            (get_ds_cfg("single_stage", src="human", eval=EVAL_TASKS, filter_key="50_demos"), "human-50"),
+        ]
+    )
+    
     if args.env == "r2d2":
         generator.add_param(
             key="train.data",
@@ -106,8 +117,8 @@ def make_generator_helper(args):
         )
 
 
-    else:
-        raise ValueError
+    # else:
+    #     raise ValueError
     
     generator.add_param(
         key="train.output_dir",

@@ -111,6 +111,23 @@ def set_env_settings(generator, args):
                 "ResNet18ConvFiLM"
             ],
         )
+        if args.addmask:
+            generator.add_param(
+                key="observation.encoder.masked_rgb.core_class",
+                name="",
+                group=-1,
+                values=[
+                    "VisualCoreLanguageConditioned"
+                ],
+            )
+            generator.add_param(
+                key="observation.encoder.masked_rgb.core_kwargs.backbone_class",
+                name="",
+                group=-1,
+                values=[
+                    "ResNet18ConvFiLM"
+                ],
+            )
 
         env_kwargs = {
             "generative_textures": None,
@@ -141,6 +158,17 @@ def set_env_settings(generator, args):
             ],
             hidename=True,
         )
+        
+        if args.addmask:
+            generator.add_param(
+                key="observation.encoder.masked_rgb.obs_randomizer_kwargs",
+                name="obsrandargs",
+                group=-1,
+                values=[
+                    {"crop_height": 116, "crop_width": 116, "num_crops": 1, "pos_enc": False},
+                ],
+                hidename=True,
+            )
         if "experiment.rollout.n" not in generator.parameters:
             generator.add_param(
                 key="experiment.rollout.n",
@@ -179,6 +207,17 @@ def set_env_settings(generator, args):
                      "robot0_eye_in_hand_image"]
                 ],
             )
+            if args.addmask:
+                generator.add_param(
+                    key="observation.modalities.obs.masked_rgb",
+                    name="",
+                    group=-1,
+                    values=[
+                        ["masked_robot0_agentview_left_image",
+                         "masked_robot0_agentview_right_image",
+                         "masked_robot0_eye_in_hand_image"]
+                    ],
+                )
         else:
             generator.add_param(
                 key="observation.modalities.obs.low_dim",
@@ -228,7 +267,7 @@ def set_mod_settings(generator, args):
                 key="train.num_data_workers",
                 name="",
                 group=-1,
-                values=[5],
+                values=[16],
             )
         generator.add_param(
             key="train.hdf5_cache_mode",
@@ -498,6 +537,11 @@ def get_argparser():
         "--num_cmd_groups",
         type=int,
         default=None
+    )
+    
+    parser.add_argument(
+        "--addmask",
+        action="store_true"
     )
 
     return parser

@@ -30,6 +30,7 @@ from collections import OrderedDict
 
 import torch
 from torch.utils.data import DataLoader
+import torch.nn as nn
 
 import robomimic
 import robomimic.utils.train_utils as TrainUtils
@@ -38,10 +39,23 @@ import robomimic.utils.obs_utils as ObsUtils
 import robomimic.utils.env_utils as EnvUtils
 import robomimic.utils.file_utils as FileUtils
 import robomimic.utils.lang_utils as LangUtils
+from robomimic.utils.ground_utils import GroundUtils
 from robomimic.config import config_factory
 from robomimic.algo import algo_factory, RolloutPolicy
 from robomimic.utils.log_utils import PrintLogger, DataLogger, flush_warnings
 
+import torch.distributed as dist
+from torch.nn.parallel import DistributedDataParallel as DDP
+from robomimic.utils.distributed_utils import get_rank, get_world_size, is_main_process, init_distributed_mode
+
+import random
+
+
+def setup_seed(seed):
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+    random.seed(seed)
+    
 
 def train(config, device):
     """
@@ -51,6 +65,8 @@ def train(config, device):
     # first set seeds
     np.random.seed(config.train.seed)
     torch.manual_seed(config.train.seed)
+    # setup_seed(config.train.seed + get_rank())
+    # torch.backends.cudnn.benchmark = True
 
     # set num workers
     torch.set_num_threads(1)
@@ -68,6 +84,10 @@ def train(config, device):
 
     # read config to set up metadata for observation modalities (e.g. detecting rgb observations)
     ObsUtils.initialize_obs_utils_with_config(config)
+    
+    # initialize grounding model
+    # grounding_model = GroundUtils(device="cuda:1")
+    grounding_model = None
 
     # extract the metadata and shape metadata across all datasets
     env_meta_list = []
@@ -149,6 +169,7 @@ def train(config, device):
 
     print("")
 
+    # if is_main_process():
     # setup for a new training run
     data_logger = DataLogger(
         log_dir,
@@ -163,7 +184,7 @@ def train(config, device):
         ac_dim=shape_meta_list[0]["ac_dim"],
         device=device,
     )
-    
+            
     # save the config as a json file
     with open(os.path.join(log_dir, '..', 'config.json'), 'w') as outfile:
         json.dump(config, outfile, indent=4)
@@ -186,6 +207,12 @@ def train(config, device):
     )
     trainset, validset = TrainUtils.load_data_for_training(
         config, obs_keys=shape_meta["all_obs_keys"], lang_encoder=lang_encoder)
+    
+    # if config.distributed:
+    #     train_sampler = torch.utils.data.DistributedSampler(
+    #         trainset, num_replicas=get_world_size(), rank=get_rank(), shuffle=True
+    #     )
+    # else:
     train_sampler = trainset.get_dataset_sampler()
     print("\n============= Training Dataset =============")
     print(trainset)
@@ -253,6 +280,7 @@ def train(config, device):
                 epoch=epoch,
                 num_steps=train_num_steps,
                 obs_normalization_stats=obs_normalization_stats,
+                device=device
             )
             model.on_epoch_end(epoch)
 
@@ -273,6 +301,7 @@ def train(config, device):
                 last_ckpt_time = time.time()
                 ckpt_reason = "time"
 
+            # if is_main_process():
             print("Train Epoch {}".format(epoch))
             print(json.dumps(step_log, sort_keys=True, indent=4))
             for k, v in step_log.items():
@@ -284,7 +313,7 @@ def train(config, device):
             # Evaluate the model on validation set
             if config.experiment.validate:
                 with torch.no_grad():
-                    step_log = TrainUtils.run_epoch(model=model, data_loader=valid_loader, epoch=epoch, validate=True, num_steps=valid_num_steps)
+                    step_log = TrainUtils.run_epoch(model=model, data_loader=valid_loader, epoch=epoch, validate=True, num_steps=valid_num_steps, device=device)
                 for k, v in step_log.items():
                     if k.startswith("Time_"):
                         data_logger.record("Timing_Stats/Valid_{}".format(k[5:]), v, epoch)
@@ -335,6 +364,7 @@ def train(config, device):
                 terminate_on_success=config.experiment.rollout.terminate_on_success,
                 del_envs_after_rollouts=True,
                 data_logger=data_logger,
+                grounding_model=grounding_model
             )
 
             #### move this code to rollout_with_stats function to log results one by one ####
@@ -385,7 +415,7 @@ def train(config, device):
                 validset,
                 num_samples=config.experiment.mse.num_samples,
                 savedir=save_vis_dir,
-            )    
+            )
             for k, v in mse_log.items():
                 data_logger.record("{}".format(k), v, epoch)
             
@@ -417,11 +447,14 @@ def train(config, device):
         # Finally, log memory usage in MB
         process = psutil.Process(os.getpid())
         mem_usage = int(process.memory_info().rss / 1000000)
+        # if is_main_process():
         data_logger.record("System/RAM Usage (MB)", mem_usage, epoch)
         print("\nEpoch {} Memory Usage: {} MB\n".format(epoch, mem_usage))
 
-    # terminate logging
+    # if is_main_process():
+        # terminate logging
     data_logger.close()
+    
 
 
 def main(args):
@@ -463,7 +496,10 @@ def main(args):
 
         # send output to a temporary directory
         config.train.output_dir = "/tmp/tmp_trained_models"
-
+    
+    # config.unlock()
+    # init_distributed_mode(config)
+    
     # lock config to prevent further modifications and ensure missing keys raise errors
     config.lock()
 

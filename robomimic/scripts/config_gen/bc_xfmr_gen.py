@@ -14,15 +14,16 @@ def make_generator_helper(args):
         args.ckpt_mode = "off"
 
     ### Multi-task training on atomic tasks ###
-    EVAL_TASKS = ["PnPCounterToSink", "PnPCounterToCab"] # or evaluate all tasks by setting EVAL_TASKS = None
-    generator.add_param(
-        key="train.data",
-        name="ds",
-        group=123456,
-        values_and_names=[
-            (get_ds_cfg("single_stage", src="human", eval=EVAL_TASKS, filter_key="50_demos"), "human-50"),
-        ]
-    )
+    # EVAL_TASKS = ["PnPCounterToSink", "PnPCounterToCab"] # or evaluate all tasks by setting EVAL_TASKS = None
+    EVAL_TASKS = ["CloseDrawer", "OpenDrawer"]
+    # generator.add_param(
+    #     key="train.data",
+    #     name="ds",
+    #     group=123456,
+    #     values_and_names=[
+    #         (get_ds_cfg("single_stage", src="human", eval=EVAL_TASKS, filter_key="50_demos"), "human-50"),
+    #     ]
+    # )
 
     """
     ### Uncomment this code to train composite task policies ###
@@ -49,14 +50,14 @@ def make_generator_helper(args):
     )
     """
     
-    """
+    
     ### Uncomment this code to evaluate checkpoints ###
     generator.add_param(
-        key="train.data,
+        key="train.data",
         name="ds",
         group=1389,
         values_and_names=[
-            ("set same training data as checkpoint here", "ds-name"),
+            (get_ds_cfg("single_stage", src="human", eval=EVAL_TASKS, filter_key="50_demos"), "human-50"),
         ],
     )
     generator.add_param(
@@ -64,7 +65,7 @@ def make_generator_helper(args):
         name="ckpt",
         group=1389,
         values_and_names=[
-            ("Add checkpoint pth path here", "trained-ckpt"),
+            ("/root/huanghaifeng/robocasa_exps/expdata/robocasa/im/bc_xfmr/07-02-train-0702/seed_123_ds_human-50/20240702164833/models/model_epoch_800.pth", "trained-ckpt"),
         ],
     )
     generator.add_param(
@@ -85,7 +86,7 @@ def make_generator_helper(args):
         group=-1,
         values=[0],
     )
-    """
+    
 
     generator.add_param(
         key="train.output_dir",

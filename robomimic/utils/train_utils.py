@@ -57,14 +57,14 @@ def get_exp_dir(config, auto_remove_exp_dir=False):
         # relative paths are specified relative to robomimic module location
         base_output_dir = os.path.join(robomimic.__path__[0], base_output_dir)
     base_output_dir = os.path.join(base_output_dir, config.experiment.name)
-    if os.path.exists(base_output_dir):
-        if not auto_remove_exp_dir:
-            ans = input("WARNING: model directory ({}) already exists! \noverwrite? (y/n)\n".format(base_output_dir))
-        else:
-            ans = "y"
-        if ans == "y":
-            print("REMOVING")
-            shutil.rmtree(base_output_dir)
+    # if os.path.exists(base_output_dir):
+    #     if not auto_remove_exp_dir:
+    #         ans = input("WARNING: model directory ({}) already exists! \noverwrite? (y/n)\n".format(base_output_dir))
+    #     else:
+    #         ans = "y"
+    #     if ans == "y":
+    #         print("REMOVING")
+    #         shutil.rmtree(base_output_dir)
 
     # only make model directory if model saving is enabled
     output_dir = None
@@ -266,6 +266,7 @@ def run_rollout(
         video_writer=None,
         video_skip=5,
         terminate_on_success=False,
+        grounding_model=None
     ):
     """
     Runs a rollout in an environment with the current network parameters.
@@ -319,8 +320,38 @@ def run_rollout(
         video_frames = [[] for _ in range(len(env))]
     else:
         video_frames = []
+        
+    if grounding_model is not None:
+        assert env.env.env.object_cfgs[0]['name'] == 'obj'
+        target_obj_name = env.env.env.object_cfgs[0]['info']['cat']
+        noun_phrases = ["the " + target_obj_name]
+        if env.name == 'PnPCounterToCab':
+            noun_phrases.extend(['the counter', 'the cabinet'])
+        elif env.name == 'PnPCounterToSink':
+            noun_phrases.extend(['the counter', 'the sink'])
+        else:
+            raise NotImplementedError
+        
+        prompt_template = "Can you segment {}?"
+
+        obs_keys = ["robot0_agentview_left_image", "robot0_agentview_right_image", "robot0_eye_in_hand_image"]
+        masked_dict = {}
+        
+        for obs_key in obs_keys:
+            tmp_img = ob_dict[obs_key][0]
+            tmp_img = np.uint8(tmp_img*255).transpose(1, 2, 0)
+            tmp_masked_img = None
+            for tmp_phrase in noun_phrases:
+                tmp_prompt = prompt_template.format(tmp_phrase)
+                tmp_masked_img = grounding_model.inference(tmp_prompt, tmp_img, tmp_masked_img)
+            tmp_masked_img = (tmp_masked_img.astype(np.float32) / 255.).transpose(2, 0, 1)
+            tmp_masked_img = np.expand_dims(tmp_masked_img, axis=0).repeat(ob_dict[obs_key].shape[0], axis=0)
+            masked_dict[f'masked_{obs_key}'] = tmp_masked_img
+            # masked_dict[f'masked_{obs_key}'] = ob_dict[obs_key]
     
     for step_i in range(horizon): #LogUtils.tqdm(range(horizon)):
+        if grounding_model is not None:
+            ob_dict.update(masked_dict)
         # get action from policy
         if batched:
             policy_ob = batchify_obs(ob_dict)
@@ -471,6 +502,7 @@ def rollout_with_stats(
         verbose=False,
         del_envs_after_rollouts=False,
         data_logger=None,
+        grounding_model=None
     ):
     """
     A helper function used in the train loop to conduct evaluation rollouts per environment
@@ -567,6 +599,7 @@ def rollout_with_stats(
                     video_writer=env_video_writer,
                     video_skip=video_skip,
                     terminate_on_success=terminate_on_success,
+                    grounding_model=grounding_model
                 )
             except Exception as e:
                 print("Rollout exception at episode number {}!".format(ep_i))
@@ -738,9 +771,9 @@ def save_model(model, config, env_meta, shape_meta, ckpt_path, obs_normalization
         params["action_normalization_stats"] = TensorUtils.to_list(action_normalization_stats)
     torch.save(params, ckpt_path)
     print("save checkpoint to {}".format(ckpt_path))
+    
 
-
-def run_epoch(model, data_loader, epoch, validate=False, num_steps=None, obs_normalization_stats=None):
+def run_epoch(model, data_loader, epoch, validate=False, num_steps=None, obs_normalization_stats=None, device="cuda"):
     """
     Run an epoch of training or validation.
 

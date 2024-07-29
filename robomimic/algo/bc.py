@@ -865,6 +865,50 @@ class BC_Transformer_GMM(BC_Transformer):
             log_probs=log_probs,
         )
         return predictions
+    
+    # def forward(self, batch):
+    #     """
+    #     Modify from super class to support GMM training.
+    #     """
+    #     # ensure that transformer context length is consistent with temporal dimension of observations
+    #     TensorUtils.assert_size_at_dim(
+    #         batch["obs"], 
+    #         size=(self.context_length), 
+    #         dim=1, 
+    #         msg="Error: expect temporal dimension of obs batch to match transformer context length {}".format(self.context_length),
+    #     )
+
+    #     dists = self.nets["policy"].forward_train(
+    #         obs_dict=batch["obs"], 
+    #         actions=None,
+    #         goal_dict=batch["goal_obs"],
+    #         low_noise_eval=False,
+    #     )
+
+    #     # make sure that this is a batch of multivariate action distributions, so that
+    #     # the log probability computation will be correct
+    #     assert len(dists.batch_shape) == 2 # [B, T]
+
+    #     if not self.supervise_all_steps:
+    #         # only use final timestep prediction by making a new distribution with only final timestep.
+    #         # This essentially does `dists = dists[:, -1]`
+    #         component_distribution = D.Normal(
+    #             loc=dists.component_distribution.base_dist.loc[:, -1],
+    #             scale=dists.component_distribution.base_dist.scale[:, -1],
+    #         )
+    #         component_distribution = D.Independent(component_distribution, 1)
+    #         mixture_distribution = D.Categorical(logits=dists.mixture_distribution.logits[:, -1])
+    #         dists = D.MixtureSameFamily(
+    #             mixture_distribution=mixture_distribution,
+    #             component_distribution=component_distribution,
+    #         )
+
+    #     log_probs = dists.log_prob(batch["actions"])
+
+    #     predictions = OrderedDict(
+    #         log_probs=log_probs,
+    #     )
+    #     return predictions
 
     def _compute_losses(self, predictions, batch):
         """

@@ -89,7 +89,7 @@ def algo_factory(algo_name, config, obs_key_shapes, ac_dim, device):
     )
 
 
-class Algo(object):
+class Algo(nn.Module):
     """
     Base algorithm class that all other algorithms subclass. Defines several
     functions that should be overriden by subclasses, in order to provide
@@ -121,6 +121,7 @@ class Algo(object):
 
             device (torch.Device): where the algo should live (i.e. cpu, gpu)
         """
+        super(Algo, self).__init__()
         self.optim_params = deepcopy(algo_config.optim_params)
         self.algo_config = algo_config
         self.obs_config = obs_config

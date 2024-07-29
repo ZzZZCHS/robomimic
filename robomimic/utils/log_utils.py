@@ -13,6 +13,7 @@ from tqdm import tqdm
 from termcolor import colored
 
 import robomimic
+from robomimic.utils.distributed_utils import is_main_process
 
 # global list of warning messages can be populated with @log_warning and flushed with @flush_warnings
 WARNINGS_BUFFER = []
@@ -28,6 +29,7 @@ class PrintLogger(object):
         self.log_file = open(log_file, "a")
 
     def write(self, message):
+        # if is_main_process():
         self.terminal.write(message)
         self.log_file.write(message)
         self.log_file.flush()
