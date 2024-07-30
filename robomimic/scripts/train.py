@@ -84,12 +84,6 @@ def train(config, device):
 
     # read config to set up metadata for observation modalities (e.g. detecting rgb observations)
     ObsUtils.initialize_obs_utils_with_config(config)
-    
-    # initialize grounding model
-    if "masked_rgb" in config.observation.modalities.obs:
-        grounding_model = GroundUtils(device="cuda:1")
-    else:
-        grounding_model = None
 
     # extract the metadata and shape metadata across all datasets
     env_meta_list = []
@@ -139,6 +133,12 @@ def train(config, device):
         eval_env_name_list.append(env_meta_list[dataset_i]["env_name"])
         horizon = dataset_cfg.get("horizon", config.experiment.rollout.horizon)
         eval_env_horizon_list.append(horizon)
+    
+    # initialize grounding model
+    if "masked_rgb" in config.observation.modalities.obs and len(eval_env_meta_list) > 0:
+        grounding_model = GroundUtils(device="cuda:1")
+    else:
+        grounding_model = None
     
     # create environments
     def env_iterator():
@@ -343,7 +343,7 @@ def train(config, device):
         # do rollouts at fixed rate or if it's time to save a new ckpt
         video_paths = None
         rollout_check = (epoch % config.experiment.rollout.rate == 0) #or (should_save_ckpt and ckpt_reason == "time") # remove this section condition, not desired when rollouts are expensive and saving frequent checkpoints
-        if config.experiment.rollout.enabled and (epoch > config.experiment.rollout.warmstart) and rollout_check:
+        if config.experiment.rollout.enabled and (epoch > config.experiment.rollout.warmstart) and rollout_check and (len(eval_env_meta_list) > 0):
             # wrap model as a RolloutPolicy to prepare for rollouts
             rollout_model = RolloutPolicy(
                 model,
